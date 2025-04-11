@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>LanternFestival</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    // ページの読み込みを待つ
+    window.addEventListener("DOMContentLoaded", init);
+
+    function init() {
+      // サイズを指定
+      const width = 960;
+      const height = 540;
+
+      // レンダラーを作成
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.querySelector("#myCanvas"),
+        antialias: true,
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      // シーンを作成
+      const scene = new THREE.Scene();
+
+      // フォグを設定
+      scene.fog = new THREE.Fog(0x000000, 50, 2000);
+
+      // カメラを作成
+      const camera = new THREE.PerspectiveCamera(45, width / height, 1, 2000);
+      camera.position.set(0, -500, 1700);
+      camera.lookAt(new THREE.Vector3(0, 0, 0)); // 上向きに設定
+
+      // グループを作成
+      const group = new THREE.Group();
+      scene.add(group);
+
+      // 円柱のジオメトリを作成（上面を覆い、下面を抜けたままにする）
+      const cylinderGeometry = new THREE.CylinderGeometry(35, 35, 70, 32, 1, false);
+      const cylinderBottomGeometry = new THREE.CylinderGeometry(35, 35, 70, 32, 1, true);
+
+      // 頂点カラーを設定
+      const colors = [];
+      for (let i = 0; i < cylinderGeometry.attributes.position.count; i++) {
+        const y = cylinderGeometry.attributes.position.getY(i);
+        const color = new THREE.Color(0xffffff);
+
+        // 黄色からオレンジへのグラデーションを設定
+        if (y >= 0) {
+          color.setRGB(1, 1 - (y / 35), 0); // 黄色からオレンジ
+        } else {
+          color.setRGB(1, 1, 0); // 黄色
+        }
+
+        colors.push(color.r, color.g, color.b);
+      }
+      cylinderGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      cylinderBottomGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+      // 直方体のジオメトリを作成（全て同じサイズにする）
+      const boxGeometry = new THREE.BoxGeometry(55, 70, 55);
+
+      // 直方体の頂点カラーを設定
+      const boxColors = [];
+      for (let i = 0; i < boxGeometry.attributes.position.count; i++) {
+        const y = boxGeometry.attributes.position.getY(i);
+        const color = new THREE.Color(0xffffff);
+
+        // 黄色からオレンジへのグラデーションを設定
+        if (y >= 0) {
+          color.setRGB(1, 1 - (y / 35), 0); // 黄色からオレンジ
+        } else {
+          color.setRGB(1, 1, 0); // 黄色
+        }
+
+        boxColors.push(color.r, color.g, color.b);
+      }
+      boxGeometry.setAttribute('color', new THREE.Float32BufferAttribute(boxColors, 3));
+
+      // 半透明のマテリアルを作成
+      const material = new THREE.MeshStandardMaterial({
+        vertexColors: true, // 頂点カラーを有効にする
+        opacity: 0.9,
+        transparent: true,
+        side: THREE.DoubleSide // 内部からも見えるようにする
+      });
+
+      const meshes = [];
+
+      // 円柱メッシュを作成し、グループに追加
+      for (let i = 0; i < 150; i++) {
+        const mesh = new THREE.Mesh(cylinderGeometry, material);
+        // 0~1999の乱数を作成
+        mesh.position.x = (Math.random() - 0.5) * 2000;
+        mesh.position.y = (Math.random() - 0.5) * 2000;
+        mesh.position.z = (Math.random() - 0.5) * 2000;
+        // 回転を統一する
+        mesh.rotation.x = 0;
+        mesh.rotation.y = 0;
+        mesh.rotation.z = 0;
+        // グループに格納する
+        group.add(mesh);
+        meshes.push({
+          mesh: mesh,
+          velocity: new THREE.Vector3(Math.random() * 0.6 - 0.3, 0.3, 0) // 斜め上の速度を追加
+        });
+
+        const bottomMesh = new THREE.Mesh(cylinderBottomGeometry, material);
+        bottomMesh.position.x = mesh.position.x;
+        bottomMesh.position.y = mesh.position.y;
+        bottomMesh.position.z = mesh.position.z;
+        bottomMesh.rotation.x = mesh.rotation.x;
+        bottomMesh.rotation.y = mesh.rotation.y;
+        bottomMesh.rotation.z = mesh.rotation.z;
+        group.add(bottomMesh);
+        meshes.push({
+          mesh: bottomMesh,
+          velocity: new THREE.Vector3(Math.random() * 0.6 - 0.3, 0.3, 0) // 斜め上の速度を追加
+        });
+      }
+
+      // 直方体メッシュを作成し、グループに追加
+      for (let i = 0; i < 100; i++) {
+        const mesh = new THREE.Mesh(boxGeometry, material);
+        mesh.position.x = (Math.random() - 0.5) * 2000;
+        mesh.position.y = (Math.random() - 0.5) * 2000;
+        mesh.position.z = (Math.random() - 0.5) * 2000;
+        // 回転を統一する
+        mesh.rotation.x = 0;
+        mesh.rotation.y = 0;
+        mesh.rotation.z = 0;
+        // グループに格納する
+        group.add(mesh);
+        meshes.push({
+          mesh: mesh,
+          velocity: new THREE.Vector3(Math.random() * 0.6 - 0.3, 0.3, 0) // 斜め上の速度を追加
+        });
+      }
+
+      // 背景の星を作成
+      // 頂点情報を格納する配列
+      const vertices_star = [];
+
+      // 形状データを作成
+      const SIZE = 3000;
+      // 配置する個数
+      const LENGTH = 3000;
+
+      for (let i = 0; i < LENGTH; i++) {
+        const x = SIZE * (Math.random() - 0.5);
+        const y = SIZE * (Math.random() - 0.5);
+        const z = SIZE * 0.4;
+
+        vertices_star.push(x, y, z);
+      }
+      // 形状データを作成
+      const geometry_star = new THREE.BufferGeometry();
+      geometry_star.setAttribute('position', new THREE.Float32BufferAttribute(vertices_star, 3));
+
+      // マテリアルを作成
+      const material2 = new THREE.PointsMaterial({
+        size: 2,
+        color: 0xffffcc,
+      });
+
+      // 物体を作成
+      const mesh = new THREE.Points(geometry_star, material2);
+      scene.add(mesh);
+
+      // 花火を描画
+      const fireworkGroup = new THREE.Group();
+      scene.add(fireworkGroup);
+
+      //花火の色をランダムで変える
+      const fireworkColors = [
+        { hue : Math.random()*0.1},           
+        { hue : 0.21 + Math.random()*0.2 },   
+        { hue : 0.41 + Math.random()*0.2 },  
+        { hue : 0.61 + Math.random()*0.2 },   
+        { hue : 0.8 + Math.random()*0.2 }, 
+      ];
+
+      let colorIndex = 0;
+
+      //花火を作る
+      function createFirework(x, y, z) {
+        const fireworkGeometry = new THREE.BufferGeometry();
+        const fireworkVertices = [];   //頂点座標を格納
+        const fireworkVelocity = [];   //頂点の速度を格納
+        const fireworkColorValues = []; //頂点の色を格納
+
+        for (let i = 0; i < 400; i++) {
+          const theta = Math.random() * 2 * Math.PI;
+          const phi = Math.random() * Math.PI;
+          const speed = 3;
+
+          const vx = speed * Math.sin(phi) * Math.cos(theta);
+          const vy = speed * Math.sin(phi) * Math.sin(theta);
+          const vz = 0;
+
+          fireworkVertices.push(0, 0, 0);
+          fireworkVelocity.push(vx, vy, vz);
+
+          const color = new THREE.Color();
+          color.setHSL(fireworkColors[colorIndex].hue, 1.0, 0.5);
+          fireworkColorValues.push(color.r, color.g, color.b);
+        }
+
+        fireworkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(fireworkVertices, 3));
+        fireworkGeometry.setAttribute('velocity', new THREE.Float32BufferAttribute(fireworkVelocity, 3));
+        fireworkGeometry.setAttribute('color', new THREE.Float32BufferAttribute(fireworkColorValues, 3));
+
+        const fireworkMaterial = new THREE.PointsMaterial({
+          size: 15,
+          vertexColors: true,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+        });
+
+        const firework = new THREE.Points(fireworkGeometry, fireworkMaterial);
+        firework.position.set(x, y, z);
+        fireworkGroup.add(firework);
+      }
+
+      // カメラの位置と視野を元にランダムな位置を生成する関数
+      function getRandomPositionWithinCameraView() {
+        const cameraPosition = camera.position;
+        const frustum = new THREE.Frustum();
+        const cameraView = new THREE.Matrix4().makePerspective(
+          camera.fov,
+          camera.aspect,
+          camera.near,
+          camera.far
+        );
+        frustum.setFromProjectionMatrix(cameraView);
+
+        const width = 1500; // 画面内の幅
+        const height = width / camera.aspect; // 画面内の高さ
+
+        // 奥行き（z座標）は固定する
+        const z = 600;
+
+        let x, y;
+        do {
+          x = Math.random() * width - width / 2;
+          y = Math.random() * height - height / 2;
+        } while (!frustum.containsPoint(new THREE.Vector3(x, y, z)));
+
+        return { x, y, z };
+      }
+
+
+      // 光源
+      const ambientLight = new THREE.AmbientLight(0x404040);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xff8c00, 1);
+      directionalLight.position.set(0, 0, 1).normalize();
+      scene.add(directionalLight);
+
+      scene.add(new THREE.AmbientLight(0xb66514)); // 環境光源
+
+      // 毎フレーム時に実行されるループイベントです
+      tick();
+
+      function tick() {
+        // グループを回す
+        group.rotateY(0.0005);
+
+        // メッシュを徐々に上昇させる
+        meshes.forEach(obj => {
+          obj.mesh.position.add(obj.velocity); // 速度を適用して移動
+
+          // 上限を超えた場合にリセット
+          if (obj.mesh.position.y > 1000) {
+            obj.mesh.position.y = -1000;
+            obj.mesh.position.x = (Math.random() - 0.5) * 2000; // 新しい位置にリセット
+            obj.velocity.x = Math.random() * 0.6 - 0.3; // 新しい速度を設定
+          }
+        });
+
+        fireworkGroup.children.forEach(firework => {
+          const positions = firework.geometry.attributes.position.array;
+          const velocities = firework.geometry.attributes.velocity.array;
+
+          for (let i = 0; i < positions.length; i += 3) {
+            positions[i] += velocities[i];
+            positions[i + 1] += velocities[i + 1];
+            positions[i + 2] += velocities[i + 2];
+          }
+
+          firework.geometry.attributes.position.needsUpdate = true;
+
+          // 花火が一定の距離以上移動したら削除
+          if (Math.sqrt(positions[0] ** 2 + positions[1] ** 2 + positions[2] ** 2) > 300) {
+            fireworkGroup.remove(firework);
+          }
+          // 花火が一定の距離以上移動したら削除
+          const maxDistance = 300; // 距離の上限を設定
+          for (let i = 0; i < positions.length; i += 3) {
+            const distance = Math.sqrt(
+              positions[i] ** 2 +
+              positions[i + 1] ** 2 +
+              positions[i + 2] ** 2
+            );  
+            if (distance > maxDistance) {
+              fireworkGroup.remove(firework);
+              firework.geometry.dispose();
+              firework.material.dispose();
+              break; // 一つの頂点が上限を超えたらオブジェクト全体を削除
+            }
+          }
+          });
+
+        renderer.render(scene, camera); // レンダリング
+        requestAnimationFrame(tick);
+      }
+
+      document.getElementById("fireworkButton").addEventListener("click", () => {
+        const position = getRandomPositionWithinCameraView();
+        createFirework(position.x, position.y, position.z);
+        colorIndex = (colorIndex + 1) % fireworkColors.length; // 色を順番に変更
+      })
+    }
+  </script>
+</head>
+<body>
+  <canvas id="myCanvas"></canvas>
+  <button id="fireworkButton">Launch Fireworks</button>
+</body>
+</html>
